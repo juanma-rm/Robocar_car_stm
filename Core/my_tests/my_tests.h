@@ -1,26 +1,22 @@
 /******************************************************************************
- * @file tools_system.h
- * @brief Header for tools_system.c file
+ * @file my_tests.h
+ * @brief Header for my_tests.c file
  *
  * \todo complete description
  ******************************************************************************/
 
 /*******************************************************************************
- * HEADER GUARD + EXTERN C: BEGIN
+ * HEADER GUARD: BEGIN
  ******************************************************************************/
 
-#ifndef TOOLS_SYSTEM_H_
-#define TOOLS_SYSTEM_H_
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef MY_TESTS_H_
+#define MY_TESTS_H_
 
 /*******************************************************************************
  * INCLUSIONS
  ******************************************************************************/
 
-#include "main.h"
+
 
 /*******************************************************************************
  * DEFINES AND CONST DATA
@@ -28,24 +24,20 @@ extern "C" {
 
 
 
-
 /*******************************************************************************
  * FUNCTION PROTOTYPES
  ******************************************************************************/
 
-void SystemClock_Config(void);
-void MX_GPIO_Init(void);
-void MX_USART3_UART_Init(void);
-void MX_USART3_UART_Transmit(uint8_t *pData, uint16_t Size, uint32_t Timeout);
-void StartDefaultTask(void *argument);
-void Error_Handler(void);
+void test_ts_diff_time();
+void test_systools_delay_us_nops(void);
 
 /*******************************************************************************
- * HEADER GUARD + EXTERN C: END
+ * FUNCTION DEFINITIONS
  ******************************************************************************/
 
-#ifdef __cplusplus
-}
-#endif
 
-#endif /* TOOLS_SYSTEM_H_ */
+/*******************************************************************************
+ * HEADER GUARD: END
+ ******************************************************************************/
+
+#endif /* MY_TESTS_H_ */

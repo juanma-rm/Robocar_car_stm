@@ -10,24 +10,36 @@
  * INCLUSIONS
  ******************************************************************************/
 
-#include "tools_system.h"
+#include "systools.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+#include <hcsr04.h>
 
 /*******************************************************************************
  * GLOBAL VARIABLES
  ******************************************************************************/
 
 static UART_HandleTypeDef huart3;
-
+static bool uart_initialized = false;
 
 /*******************************************************************************
- * FUNCTIONS DEFINITIONS
+ * FUNCTIONS PROTOTYPES
+ ******************************************************************************/
+
+static void SystemClock_Config(void);
+static void MX_USART3_UART_Init(void);
+static void MX_GPIO_Init(void);
+
+/*******************************************************************************
+ * FUNCTIONS DEFINITIONS: PRIVATE
  ******************************************************************************/
 
 /*****************************************
  * @brief System Clock Configuration
  * @retval None
  ****************************************/
-void SystemClock_Config(void) {
+static void SystemClock_Config(void) {
 	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
 	RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
 	RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = { 0 };
@@ -78,7 +90,7 @@ void SystemClock_Config(void) {
  * @param None
  * @retval None
  ****************************************/
-void MX_USART3_UART_Init(void) {
+static void MX_USART3_UART_Init(void) {
 	huart3.Instance = USART3;
 	huart3.Init.BaudRate = 115200;
 	huart3.Init.WordLength = UART_WORDLENGTH_8B;
@@ -92,15 +104,7 @@ void MX_USART3_UART_Init(void) {
 	if (HAL_UART_Init(&huart3) != HAL_OK) {
 		Error_Handler();
 	}
-}
-
-/*****************************************
- * @brief USART3 Transmit Function
- * @param None
- * @retval None
- ****************************************/
-void MX_USART3_UART_Transmit(uint8_t *pData, uint16_t Size, uint32_t Timeout) {
-	HAL_UART_Transmit(&huart3, pData, Size, Timeout);
+	uart_initialized = true;
 }
 
 /*****************************************
@@ -108,29 +112,22 @@ void MX_USART3_UART_Transmit(uint8_t *pData, uint16_t Size, uint32_t Timeout) {
  * @param None
  * @retval None
  ****************************************/
-void MX_GPIO_Init(void) {
+static void MX_GPIO_Init(void) {
 	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
 	/* GPIO Ports Clock Enable */
-	__HAL_RCC_GPIOC_CLK_ENABLE();
-	__HAL_RCC_GPIOH_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 	__HAL_RCC_GPIOB_CLK_ENABLE();
-	__HAL_RCC_GPIOD_CLK_ENABLE();
+	__HAL_RCC_GPIOC_CLK_ENABLE();
+//	__HAL_RCC_GPIOD_CLK_ENABLE();
 	__HAL_RCC_GPIOG_CLK_ENABLE();
+//	__HAL_RCC_GPIOH_CLK_ENABLE();
+	__HAL_RCC_GPIOF_CLK_ENABLE();
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOB, LD1_Pin | LD3_Pin | LD2_Pin, GPIO_PIN_RESET);
-
-	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin,
 			GPIO_PIN_RESET);
-
-	/*Configure GPIO pin : USER_Btn_Pin */
-	GPIO_InitStruct.Pin = USER_Btn_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(USER_Btn_GPIO_Port, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : RMII_MDC_Pin RMII_RXD0_Pin RMII_RXD1_Pin */
 	GPIO_InitStruct.Pin = RMII_MDC_Pin | RMII_RXD0_Pin | RMII_RXD1_Pin;
@@ -147,13 +144,6 @@ void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-	/*Configure GPIO pins : LD1_Pin LD3_Pin LD2_Pin */
-	GPIO_InitStruct.Pin = LD1_Pin | LD3_Pin | LD2_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 	/*Configure GPIO pin : RMII_TXD1_Pin */
 	GPIO_InitStruct.Pin = RMII_TXD1_Pin;
@@ -198,7 +188,63 @@ void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
 	HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
+	/*Configure GPIO pin : USER_Btn_Pin */
+	GPIO_InitStruct.Pin = USER_Btn_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(USER_Btn_GPIO_Port, &GPIO_InitStruct);
+
+	/*Configure GPIO pins : LD1_Pin LD3_Pin LD2_Pin */
+	GPIO_InitStruct.Pin = LD1_Pin | LD3_Pin | LD2_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+	hcsr04_GPIO_init();
+
+	/*Configure interr: USER_Btn_Pin, hcsr04_1_echo(D4/PF14) and hcsr04_2_echo(D7/PF12) */
+	HAL_NVIC_SetPriority(EXTI15_10_IRQn, 10, 10);
+	NVIC_SetPriorityGrouping( 0 );
+	HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
+
+/*******************************************************************************
+ * FUNCTIONS DEFINITIONS: PUBLIC
+ ******************************************************************************/
+
+/*****************************************
+ * @brief System Clock Configuration
+ * @retval None
+ ****************************************/
+
+void systools_hw_init(void) {
+	/* Enable ICache and DCache */
+
+	SCB_EnableICache();
+	SCB_EnableDCache();
+
+	/* Reset of all peripherals, Initializes Flash interface and Systick */
+	HAL_Init();
+
+	/* Configure the system clock. BUG in original code (file "stm32f7xx_hal_rcc.c" line 855):
+	 * call "HAL_InitTick(TICK_INT_PRIORITY)" instead of "HAL_InitTick(uwTickPrio);" */
+	SystemClock_Config();
+
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_USART3_UART_Init();
+}
+
+/*****************************************
+ * @brief USART3 Transmit Function
+ * @param None
+ * @retval None
+ ****************************************/
+void systools_transm_usart3(uint8_t *pData, uint16_t Size, uint32_t Timeout) {
+	HAL_UART_Transmit(&huart3, pData, Size, Timeout);
+}
+
 
 /*****************************************
  * @brief  Period elapsed callback in non blocking mode
@@ -233,12 +279,64 @@ void Error_Handler(void) {
   * @param  line: assert_param error line source number
   * @retval None
   ****************************************/
-void assert_failed(uint8_t *file, uint32_t line)
-{
-  /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
+void assert_failed(uint8_t *file, uint32_t line) {
+	if (uart_initialized == true)
+	{
+		char str_out[100];
+		sprintf(str_out, "Wrong parameters value: file %s on line %lu\r\n", file, line);
+		systools_transm_usart3((uint8_t *)str_out, strlen(str_out), 10);
+	}
+	Error_Handler();
 }
+
+/*****************************************
+  * @brief Delay in us using timer10 (unsafe to use, since the timer will not
+  * stop in case a context switch takes place in the middle)
+  * @param time_us: time in us to delay. Max: 2^16
+  * @retval None
+  ****************************************/
+/*
+ * WARNING: TIM10 IS ALREADY BEING USED
+void systools_delay_us_tim10(unsigned int time_us) {
+	__HAL_TIM_SET_COUNTER(&htim10,0);
+	HAL_TIM_Base_Start_IT(&htim10);
+	while( __HAL_TIM_GET_COUNTER(&htim10) < time_us);
+	HAL_TIM_Base_Stop_IT(&htim10);
+}
+*/
+
+/*****************************************
+  * @brief Delay in us using nops (safe to use; however, this only guarantees a minimum
+  * delay, since a context switch in the middle would increase the delay time)
+  * @param time_us: time in us to delay. Max: sizeof(unsigned int), typically 2^32
+  * @retval None
+  ****************************************/
+void systools_delay_us_nops(unsigned int time_us) {
+	#define NB_INSTR_PER_ITER	(1+3)	// 1 nop instr + 3 instr for loop control
+	#define ITERS_PER_US		(HCLK_FREQ_MHZ*SIMULT_INSTR/NB_INSTR_PER_ITER)
+										// 96MHz*2(dual_issue)/4instr_per_iter
+	__asm__ __volatile__(
+			".nop_init:" 		"\n\t"
+//			"nop" 				"\r\n"	// We avoid using nop. According to the Cortex M7 references:
+										// NOP does nothing. NOP is not necessarily a time-consuming NOP.
+										//The processor might remove it from the pipeline before it reaches the execution stage
+			"add	%[iter_count], #0"		"\r\n"	// Nop alternative
+			"subs	%[iter_count], #1"		"\r\n"
+			"cmp	%[iter_count], #0"		"\r\n"
+			"bne.n	.nop_init"	"\r\n"
+			: // No outputs
+			: [iter_count] "r" (time_us*ITERS_PER_US)
+			: // No clobbers
+	);
+
+	/*
+	 * Alternative way (no control of object code generated)
+		for (register unsigned int nb_nop=time_us*FREQ_CPU_MHZ; nb_nop>0; nb_nop--) {
+			asm volatile ("nop");
+		}
+	*/
+}
+
+
 #endif /* USE_FULL_ASSERT */
 
