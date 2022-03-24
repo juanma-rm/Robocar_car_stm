@@ -1,10 +1,12 @@
 /******************************************************************************
- * @file tools_system.c
+ * Project: Robocar
+ * Application: on board app
+ * Platform: STM Nucleo-F767ZI
+ * @file systools.c
+ * @version v1.0
  * @brief File containing functions related to system tools (init, cache, gpio,
  * uart, etc.)
- *
- * \todo complete description
- ******************************************************************************/
+******************************************************************************/
 
 /*******************************************************************************
  * INCLUSIONS
@@ -37,7 +39,6 @@ static void MX_GPIO_Init(void);
 
 /*****************************************
  * @brief System Clock Configuration
- * @retval None
  ****************************************/
 static void SystemClock_Config(void) {
 	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
@@ -87,8 +88,6 @@ static void SystemClock_Config(void) {
 
 /*****************************************
  * @brief USART3 Initialization Function
- * @param None
- * @retval None
  ****************************************/
 static void MX_USART3_UART_Init(void) {
 	huart3.Instance = USART3;
@@ -109,8 +108,6 @@ static void MX_USART3_UART_Init(void) {
 
 /*****************************************
  * @brief GPIO Initialization Function
- * @param None
- * @retval None
  ****************************************/
 static void MX_GPIO_Init(void) {
 	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
@@ -203,7 +200,8 @@ static void MX_GPIO_Init(void) {
 
 	hcsr04_GPIO_init();
 
-	/*Configure interr: USER_Btn_Pin, hcsr04_1_echo(D4/PF14) and hcsr04_2_echo(D7/PF12) */
+	/*Configure interr: USER_Btn_Pin, hcsr04_1_echo(D4/PF14) and
+	 * hcsr04_2_echo(D7/PF12) */
 	HAL_NVIC_SetPriority(EXTI15_10_IRQn, 10, 10);
 	NVIC_SetPriorityGrouping( 0 );
 	HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
@@ -214,10 +212,8 @@ static void MX_GPIO_Init(void) {
  ******************************************************************************/
 
 /*****************************************
- * @brief System Clock Configuration
- * @retval None
+ * @brief Initialise hardware (cache, HAL, system clock, GPIO and USART3)
  ****************************************/
-
 void systools_hw_init(void) {
 	/* Enable ICache and DCache */
 
@@ -227,8 +223,9 @@ void systools_hw_init(void) {
 	/* Reset of all peripherals, Initializes Flash interface and Systick */
 	HAL_Init();
 
-	/* Configure the system clock. BUG in original code (file "stm32f7xx_hal_rcc.c" line 855):
-	 * call "HAL_InitTick(TICK_INT_PRIORITY)" instead of "HAL_InitTick(uwTickPrio);" */
+	/* Configure the system clock. BUG in original code (file
+	 * "stm32f7xx_hal_rcc.c" line 855): call "HAL_InitTick(TICK_INT_PRIORITY)"
+	 * instead of "HAL_InitTick(uwTickPrio);" */
 	SystemClock_Config();
 
 	/* Initialize all configured peripherals */
@@ -238,21 +235,21 @@ void systools_hw_init(void) {
 
 /*****************************************
  * @brief USART3 Transmit Function
- * @param None
- * @retval None
+ * @param pData: uint8_t pointer to data to transmit
+ * @param size: number of uint8_t elements to be sent
+ * @param timeout in number of ticks
  ****************************************/
-void systools_transm_usart3(uint8_t *pData, uint16_t Size, uint32_t Timeout) {
-	HAL_UART_Transmit(&huart3, pData, Size, Timeout);
+void systools_transm_usart3(uint8_t *pData, uint16_t size, uint32_t timeout) {
+	HAL_UART_Transmit(&huart3, pData, size, timeout);
 }
 
 
 /*****************************************
- * @brief  Period elapsed callback in non blocking mode
+ * @brief  Period elapsed callback for timers, in non blocking mode
  * @note   This function is called  when TIM1 interrupt took place, inside
  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
  * a global variable "uwTick" used as application time base.
- * @param  htim : TIM handle
- * @retval None
+ * @param  htim : timer TIM handle
  ****************************************/
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance == TIM1) {
@@ -262,7 +259,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 /*****************************************
  * @brief  This function is executed in case of error occurrence.
- * @retval None
  ****************************************/
 void Error_Handler(void) {
 	/* User can add his own implementation to report the HAL error return state */
@@ -277,24 +273,23 @@ void Error_Handler(void) {
   *         where the assert_param error has occurred.
   * @param  file: pointer to the source file name
   * @param  line: assert_param error line source number
-  * @retval None
   ****************************************/
 void assert_failed(uint8_t *file, uint32_t line) {
 	if (uart_initialized == true)
 	{
 		char str_out[100];
-		sprintf(str_out, "Wrong parameters value: file %s on line %lu\r\n", file, line);
+		sprintf(str_out, "Wrong parameters value: file %s on line %lu\r\n",
+			file, line);
 		systools_transm_usart3((uint8_t *)str_out, strlen(str_out), 10);
 	}
 	Error_Handler();
 }
 
-/*****************************************
-  * @brief Delay in us using timer10 (unsafe to use, since the timer will not
-  * stop in case a context switch takes place in the middle)
-  * @param time_us: time in us to delay. Max: 2^16
-  * @retval None
-  ****************************************/
+///*****************************************
+//  * @brief Delay in us using timer10 (unsafe to use, since the timer will not
+//  * stop in case a context switch takes place in the middle)
+//  * @param time_us: time in us to delay. Max: 2^16
+//  ****************************************/
 /*
  * WARNING: TIM10 IS ALREADY BEING USED
 void systools_delay_us_tim10(unsigned int time_us) {
@@ -306,10 +301,10 @@ void systools_delay_us_tim10(unsigned int time_us) {
 */
 
 /*****************************************
-  * @brief Delay in us using nops (safe to use; however, this only guarantees a minimum
-  * delay, since a context switch in the middle would increase the delay time)
-  * @param time_us: time in us to delay. Max: sizeof(unsigned int), typically 2^32
-  * @retval None
+  * @brief Delay in us using nops (safe to use; however, this only guarantees
+  * a minimum delay, since a context switch in the middle would increase the
+  * delay time)
+  * @param time_us: time in us to delay. Max: max(unsigned int) = 2^32
   ****************************************/
 void systools_delay_us_nops(unsigned int time_us) {
 	#define NB_INSTR_PER_ITER	(1+3)	// 1 nop instr + 3 instr for loop control
@@ -317,9 +312,11 @@ void systools_delay_us_nops(unsigned int time_us) {
 										// 96MHz*2(dual_issue)/4instr_per_iter
 	__asm__ __volatile__(
 			".nop_init:" 		"\n\t"
-//			"nop" 				"\r\n"	// We avoid using nop. According to the Cortex M7 references:
-										// NOP does nothing. NOP is not necessarily a time-consuming NOP.
-										//The processor might remove it from the pipeline before it reaches the execution stage
+//			"nop" 				"\r\n"
+				// We avoid using nop. According to the Cortex M7 references:
+				// NOP does nothing. NOP is not necessarily a time-consuming NOP.
+				// The processor might remove it from the pipeline before it reaches
+				// the execution stage
 			"add	%[iter_count], #0"		"\r\n"	// Nop alternative
 			"subs	%[iter_count], #1"		"\r\n"
 			"cmp	%[iter_count], #0"		"\r\n"
@@ -336,7 +333,6 @@ void systools_delay_us_nops(unsigned int time_us) {
 		}
 	*/
 }
-
 
 #endif /* USE_FULL_ASSERT */
 

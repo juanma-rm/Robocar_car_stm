@@ -1,26 +1,29 @@
 /******************************************************************************
+ * Project: Robocar
+ * Application: on board app
+ * Platform: STM Nucleo-F767ZI
  * @file hcsr04.c
+ * @version v1.0
  * @brief File containing functions related to hcsr04 ultrasonics sensor
  *
- * One or more hcsr04 ultrasonics sensors may be handled by using this driver. After
- * preparing the requirements, hcsr04_Task will collect data for each sensor and will
- * send the distance in mm gathered in an specific queue per sensor.
- *
- * Warning!! Do not use TIM10 from any other part of the code!
- *
- * Platform: STM Nucleo-F767ZI
+ * One or more hcsr04 ultrasonics sensors may be handled by using this driver.
+ * After preparing the requirements, hcsr04_Task will collect data for each
+ * sensor and will send the distance in mm gathered in an specific queue per sensor.
  *
  * Requirements:
  * 	1) Define one hcsr04 object per each sensor being used and add it to hcsr04_ptr_array
  * 	2) Per each pin, enable its port clock (__HAL_RCC_GPIOF_CLK_ENABLE)
- * 	3) Initialize gpio: call hcsr04_GPIO_Init()
- * 	4) Initialize timer TIM10: call MX_TIM10_Init()
+ * 	3) Initialise gpio: call hcsr04_GPIO_Init()
+ * 	4) Initialise timer TIM10: call MX_TIM10_Init()
  * 		Do not use TIM10 from any other part of the code!
  * 	5) Make sure of that NVIC is configured to process Echo pin interrupts
- * 	6) Initialize semaphores and queues: hcsr04_semaph_queues_init()
- * 	7) Initialize task from main: using hcsr04_Task() as task function
+ * 	6) Initialise semaphores and queues: hcsr04_semaph_queues_init()
+ * 	7) Initialise task from main: using hcsr04_Task() as task function
  * 	8) Call hcsr04_ISR() from general GPIO ISR when it corresponds
  * 	9) Task will be blocked and will run once each time hcsr04_binSemaph is opened
+ *
+ * Warnings!
+ * 	1) TIM10 is used here. Do not use TIM10 from any other part of the code!
  *
  ******************************************************************************/
 
@@ -28,11 +31,15 @@
  * INCLUSIONS
  ******************************************************************************/
 
-#include "hcsr04.h"
-#include "systools.h"
+// Std
+
+// Freertos and hardware
 #include "cmsis_os.h"
 #include "semphr.h"
 #include "queue.h"
+// Project
+#include "hcsr04.h"
+#include "systools.h"
 
 /*******************************************************************************
  * DATA STRUCTS
@@ -69,6 +76,7 @@ static const hcsr04* hcsr04_ptr_array[NB_HCSR04] = {
 	&hcsr04_1,
 };
 
+
 /*******************************************************************************
  * GLOBAL VARIABLES
  ******************************************************************************/
@@ -90,15 +98,22 @@ static uint8_t hcsr04_queue_stbuff[NB_HCSR04][HCSR04_QUEUE_LENGTH*sizeof(int)/si
 				// the queue will store unsigned int elements
 
 /* Task handle / attributes */
-osThreadId_t sensUltrason_TaskHandle;
+osThreadId_t sensUltrason_taskHandle;
 const osThreadAttr_t sensUltrason_taskAttr = {
-		.name = "sensUltrason_Task",
+		.name = "sensUltrason_task",
 		.stack_size = 128 * 4,
 		.priority = (osPriority_t) osPriorityNormal,
 };
 
 /* Misc */
+#define TIM10_PRESC		96
+#define TIM10_FREQ_HZ	(HCLK_FREQ_HZ/TIM10_PRESC)	// 1 us (for HCLK=96MHz)
+#define TIM10_FREQ_MHZ	(TIM10_FREQ_HZ/MHZ_TO_HZ)
 #define SOUND_SPEED_M_S		340
+#define DISTANCE_MIN_MM		20		// 0.02 m
+#define DISTANCE_MAX_MM		3910	// 4 m as maximum; limited to 3.4 m to fit an int amount of time (20 ms)
+#define TIME_FOR_MAX_DIST_MS	10	// 60 ms corresponds to 10.2 m
+#define TIME_BETWEEN_TRIG_MS	60	// Manufacturer: do not trigger before having passed 60 ms after the previous trigger
 
 /*******************************************************************************
  * FUNCTIONS PROTOTYPES
@@ -110,6 +125,11 @@ static void _hcsr04_GPIO_init(const hcsr04 *hcsr04_ptr);
  * FUNCTIONS DEFINITIONS: PRIVATE
  ******************************************************************************/
 
+/*****************************************
+ * @brief Initialise GPIO pins for each hcsr04
+ * @param hcsr04_ptr points to hcsr04 object containing pin connection for
+ * the given hcsr04 sensor
+ ****************************************/
 static void _hcsr04_GPIO_init(const hcsr04 *hcsr04_ptr) {
 
 	uint16_t trigger_pin = hcsr04_ptr->trigger_pin;
@@ -124,7 +144,7 @@ static void _hcsr04_GPIO_init(const hcsr04 *hcsr04_ptr) {
 	GPIO_InitStruct.Pin = trigger_pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	HAL_GPIO_Init(trigger_port, &GPIO_InitStruct);
 
 	/* Echo */
@@ -140,9 +160,7 @@ static void _hcsr04_GPIO_init(const hcsr04 *hcsr04_ptr) {
  ******************************************************************************/
 
 /*****************************************
- * @brief Initialises GPIO pins for each hcsr04
- * @param None
- * @retval None
+ * @brief Initialise GPIO pins for each hcsr04
  ****************************************/
 void hcsr04_GPIO_init(void) {
 	for (unsigned int hcsr04_id=0; hcsr04_id<NB_HCSR04; hcsr04_id++) {
@@ -152,9 +170,7 @@ void hcsr04_GPIO_init(void) {
 }
 
 /*****************************************
- * @brief Initialises TIM10 timer
- * @param None
- * @retval None
+ * @brief Initialise TIM10 timer
  ****************************************/
 void hcsr04_TIM10_init(void) {
   htim10.Instance = TIM10;
@@ -163,16 +179,13 @@ void hcsr04_TIM10_init(void) {
   htim10.Init.Period = 65535;
   htim10.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim10.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim10) != HAL_OK)
-  {
+  if (HAL_TIM_Base_Init(&htim10) != HAL_OK) {
     Error_Handler();
   }
 }
 
 /*****************************************
- * @brief Initialises semaphores and queues
- * @param None
- * @retval None
+ * @brief Initialise semaphores and queues
  ****************************************/
 void hcsr04_semaph_queues_init(void) {
 	hcsr04_binSemaph_run_handler = xSemaphoreCreateBinaryStatic( &hcsr04_binSemaph_run_buffer );
@@ -193,12 +206,11 @@ void hcsr04_semaph_queues_init(void) {
  * @brief Task in charge of gathering data from each sensor.
  * It collects one data for each sensor each time its semaphore is opened.
  * @param argument = NULL (not used)
- * @retval None
  ****************************************/
-void hcsr04_Task(void *argument) {
+void hcsr04_task(void *argument) {
 	while(1) {
 		// 1) Wf being asked to run once
-		while (xQueueSemaphoreTake(hcsr04_binSemaph_run_handler, portMAX_DELAY) == pdFALSE) {};
+//		while (xQueueSemaphoreTake(hcsr04_binSemaph_run_handler, portMAX_DELAY) == pdFALSE) {};
 		// Per each hcsr04:
 		for (unsigned int hcsr04_index=0; hcsr04_index<NB_HCSR04; hcsr04_index++) {
 			// 2) Enable trigger (H, delay 20us, L)
@@ -211,30 +223,36 @@ void hcsr04_Task(void *argument) {
 			HAL_TIM_Base_Stop_IT(&htim10);
 			__HAL_TIM_SET_COUNTER(&htim10,0);
 			int distance_mm = -1;
-			if ( xQueueSemaphoreTake(hcsr04_binSemaph_echo_handler, pdMS_TO_TICKS(3)) == pdTRUE ) {
+			BaseType_t semaph_status = xQueueSemaphoreTake(hcsr04_binSemaph_echo_handler, (TickType_t)pdMS_TO_TICKS(70));
+			if (semaph_status == pdTRUE) {
 				// Ultrasonic sensor replied
 				unsigned int count = __HAL_TIM_GET_COUNTER(&htim10);
 				unsigned int count_us = count/TIM10_FREQ_MHZ;
 				distance_mm = count_us*SOUND_SPEED_M_S/(2*1000);
+				if (distance_mm < DISTANCE_MIN_MM) {
+					distance_mm = DISTANCE_MIN_MM;
+				}
 			} else {
+				distance_mm = DISTANCE_MAX_MM;
+//				xQueueSemaphoreTake(hcsr04_binSemaph_echo_handler, TIME_BETWEEN_TRIG_MS);
 			}
 			xQueueSendToBack(hcsr04_queue_handler[hcsr04_index], &distance_mm, 0);
 		}
+		vTaskDelay(pdMS_TO_TICKS(TIME_BETWEEN_TRIG_MS));
 	}
 }
 
 /*****************************************
- * @brief
+ * @brief interrupt routine for echo from sensors
  * @param hcsr04_index: position of the specific hcsr04 that has interrupted.
  * This position refers to the position the sensor takes in hcsr04_ptr_array.
- * @retval None
  ****************************************/
 void hcsr04_ISR(unsigned int hcsr04_index) {
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	GPIO_PinState pin_state = HAL_GPIO_ReadPin(
 			hcsr04_ptr_array[hcsr04_index]->echo_port,
 			hcsr04_ptr_array[hcsr04_index]->echo_pin);
-	if (pin_state  == GPIO_PIN_SET) {		// Rising edge
+	if (pin_state  == GPIO_PIN_SET) {			// Rising edge
 		HAL_TIM_Base_Start_IT(&htim10);
 	} else if (pin_state == GPIO_PIN_RESET) {	// Falling edge
 		HAL_TIM_Base_Stop_IT(&htim10);

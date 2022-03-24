@@ -1,9 +1,11 @@
 /******************************************************************************
- * @file tools_system.h
+ * Project: Robocar
+ * Application: on board app
+ * Platform: STM Nucleo-F767ZI
+ * @file systools.h
+ * @version v1.0
  * @brief Header for tools_system.c file
- *
- * \todo complete description
- ******************************************************************************/
+******************************************************************************/
 
 /*******************************************************************************
  * HEADER GUARD + EXTERN C: BEGIN
@@ -21,6 +23,7 @@ extern "C" {
  ******************************************************************************/
 
 #include "stm32f7xx_hal.h"
+#include <stdbool.h>
 
 /*******************************************************************************
  * DEFINES AND CONST DATA
@@ -109,7 +112,7 @@ void assert_failed(uint8_t *file, uint32_t line);
 #endif /* USE_FULL_ASSERT */
 void Error_Handler(void);
 void systools_hw_init(void);
-void systools_transm_usart3(uint8_t *pData, uint16_t Size, uint32_t Timeout);
+void systools_transm_usart3(uint8_t *pData, uint16_t size, uint32_t timeout);
 void systools_delay_us_nops(unsigned int time_us);
 void systools_delay_us_tim10(unsigned int time_us);
 
@@ -118,11 +121,20 @@ void systools_delay_us_tim10(unsigned int time_us);
  ******************************************************************************/
 
 /*****************************************
- * @brief
- * @retval None
+ * @brief calculates the difference in time between t1 and t2, considering a
+ * maximum overflow value of tmax (to consider t2 overflow)
+ * @param t1,t2,tmax must be numbers
+ * @retval time difference
  ****************************************/
 #define systools_diff_time(t1,t2,tmax) ( (t1 < t2) ? (t2-t1) : (t2+tmax-t1) )
 
+/*****************************************
+ * @brief maximum of a and b
+ ****************************************/
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
 
 /*******************************************************************************
  * HEADER GUARD + EXTERN C: END

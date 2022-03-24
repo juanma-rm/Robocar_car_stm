@@ -1,8 +1,10 @@
 /******************************************************************************
+ * Project: Robocar
+ * Application: on board app
+ * Platform: STM Nucleo-F767ZI
  * @file my_tests.h
+ * @version v1.0
  * @brief Header for my_tests.c file
- *
- * \todo complete description
  ******************************************************************************/
 
 /*******************************************************************************
