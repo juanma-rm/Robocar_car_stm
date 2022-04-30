@@ -89,3 +89,51 @@
 
 }
 */
+
+
+/*
+ * motor_ctrl.c: gpio clock enable and timer enable
+ *
+ * Option 1: if / else
+	if (motor->gpio_port == GPIOA)
+		__HAL_RCC_GPIOA_CLK_ENABLE();
+	else if (motor->gpio_port == GPIOB)
+		__HAL_RCC_GPIOB_CLK_ENABLE();
+	else if (motor->gpio_port == GPIOC)
+		__HAL_RCC_GPIOC_CLK_ENABLE();
+	else if (motor->gpio_port == GPIOD)
+		__HAL_RCC_GPIOD_CLK_ENABLE();
+	else if (motor->gpio_port == GPIOE)
+		__HAL_RCC_GPIOE_CLK_ENABLE();
+	else if (motor->gpio_port == GPIOF)
+		__HAL_RCC_GPIOF_CLK_ENABLE();
+	else if (motor->gpio_port == GPIOG)
+		__HAL_RCC_GPIOG_CLK_ENABLE();
+	else if (motor->gpio_port == GPIOH)
+		__HAL_RCC_GPIOH_CLK_ENABLE();
+	else if (motor->gpio_port == GPIOI)
+		__HAL_RCC_GPIOI_CLK_ENABLE();
+	else if (motor->gpio_port == GPIOJ)
+		__HAL_RCC_GPIOJ_CLK_ENABLE();
+	else if (motor->gpio_port == GPIOK)
+		__HAL_RCC_GPIOK_CLK_ENABLE();
+
+ * Option 2: macros
+
+#define PWM_L_PIN	GPIO_PIN_8
+#define PWM_L_PORT_	B
+
+//#define PWM_L_PORT	GPIOB
+#define PASTER(x)	{ GPIO ## x }
+#define EVALUATOR(x)	{ PASTER(x) }
+#define PWM_L_PORT	EVALUATOR(PWM_L_PORT_)
+
+#define PWM_L_CLK_EN()	__HAL_RCC_GPIOB_CLK_ENABLE()
+
+#define TEMP	B		// GPIOB
+#define PASTER(x) 		{ __HAL_RCC_GPIO ## x ## _CLK_ENABLE() ;}
+#define EVALUATOR(x)  	{ PASTER(x) }
+
+	GPIO_CLK_EN(PWM_L_PORT_);
+
+ */

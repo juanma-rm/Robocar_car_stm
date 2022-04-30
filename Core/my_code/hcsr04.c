@@ -14,7 +14,8 @@
  * 	1) Define one hcsr04 object per each sensor being used and add it to hcsr04_ptr_array
  * 	2) Per each pin, enable its port clock (__HAL_RCC_GPIOF_CLK_ENABLE)
  * 	3) Initialise gpio: call hcsr04_GPIO_Init()
- * 	4) Initialise timer TIM10: call MX_TIM10_Init()
+ * 	4) Initialise timer TIM10: hcsr04_TIM10_init()
+ * 		4.1) stm32f7xx_it.c: call "HAL_TIM_IRQHandler(&htim10)" from TIM1_UP_TIM10_IRQHandler()
  * 		Do not use TIM10 from any other part of the code!
  * 	5) Make sure of that NVIC is configured to process Echo pin interrupts
  * 	6) Initialise semaphores and queues: hcsr04_semaph_queues_init()
@@ -170,7 +171,7 @@ void hcsr04_GPIO_init(void) {
 }
 
 /*****************************************
- * @brief Initialise TIM10 timer
+ * @brief Initialise TIM10 timer at 1 MHZ
  ****************************************/
 void hcsr04_TIM10_init(void) {
   htim10.Instance = TIM10;

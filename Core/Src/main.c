@@ -17,6 +17,48 @@
  * - @todo Task4: XXXXXXXXXXXXX. debugTask, print data out via serial port
  ******************************************************************************/
 
+/*******************************************************************************
+ * PINOUT + RESOURCES
+ ******************************************************************************/
+
+/*
+ *
+ * SPI / Wemos D1 mini:
+ * - SPI1, slave
+ * - SCLK:		D23(PB3), external 10K pull-down resistor for MODE0
+ * - MISO:		D12(PA6)
+ * - MOSI: 		D11(PA7)
+ * - CS:		D24(PA4), external 10K pull-up resistor (CS low-level active)
+ *
+ * H bridge (L298N):
+ * - ENA(LM_speed):	D43(PC8), output, PWM (TIM3_CH3)
+ * - In1(LM_CW):	D40(PE10), output
+ * - In2(LM_CCW):	D39(PE12), output
+ * - ENB(RM_speed):	A6(PB1), output, PWM (TIM3_CH4)
+ * - In3(RM_CW):	D38(PE14), output
+ * - In4(RM_CCW):	D37(PE15), output
+ *
+ * Motor/encoder L (RM) (JGA25-371 DC12V500RPM):
+ * - Timer TIM4 Channels 1/2
+ * - Encod_CW:	D28(PD12), input, Encoder (TIM4_CH1)
+ * - Encod_CCW:	D29(PD13), input, Encoder (TIM4_CH2)
+ *
+ * Motor/encoder R (LM) (JGA25-371 DC12V500RPM):
+ * - Timer TIM8 Channels 1/2
+ * - Encod_CW:	D16(PC6), input, Encoder (TIM8_CH1)
+ * - Encod_CCW:	D21(PC7), input, Encoder (TIM8_CH2)
+ *
+ * Ultrasonics sensor L (HCSR04):
+ * - Timer TIM10
+ * - Trigger:	D2(PF15), output
+ * - Echo:		D4(PF14), input, falling/rising interrupt
+ *
+ * Ultrasonics sensor R (HCSR04):
+ * - Timer TIM10
+ * - Trigger:	D7(PF13), output
+ * - Echo:		D8(PF12), input, falling/rising interrupt
+ *
+ */
 
 /*******************************************************************************
  * INCLUSIONS
@@ -32,10 +74,11 @@
 #include "semphr.h"
 // Project
 #include "main.h"
-#include "my_tests.h"
 #include "hcsr04.h"
 #include "communEspSpi.h"
+#include "robot_ctrl.h"
 #include "dataCenter.h"
+#include "my_tests.h"
 
 /*******************************************************************************
  * GLOBAL VARIABLES
@@ -63,6 +106,10 @@ extern const osThreadAttr_t communEspSpi_taskAttr;
 extern xQueueHandle communespspi_in_queue_handler;
 extern xQueueHandle communespspi_out_queue_handler;
 
+/* robot_ctrl */
+extern osThreadId_t robot_ctrl_taskHandle;
+extern const osThreadAttr_t robot_ctrl_taskAttr;
+
 /* dataCenter */
 extern osThreadId_t dataCenter_taskHandle;
 extern const osThreadAttr_t dataCenter_taskAttr;
@@ -85,19 +132,27 @@ int main(void) {
 
 	/* Init HAL & hardware */
 	systools_hw_init();
-	hcsr04_TIM10_init();
 	communEspSpi_init();
+	robot_ctrl_init();
 
 	/* Init scheduler */
 	osKernelInitialize();
 
+	/* Tests / debug */
+//	motor_ctrl_init();
+//	test_PWM();
+//	test_encoder();
+//	test_dir();
+//	test_motor();
+
 	/* Creation of tasks */
-	defaultTaskHandle = osThreadNew(StartDefaultTask, NULL,	&defaultTask_attributes);
+//	defaultTaskHandle = osThreadNew(StartDefaultTask, NULL,	&defaultTask_attributes);
 	sensUltrason_taskHandle = osThreadNew(hcsr04_task, NULL, &sensUltrason_taskAttr);
 	communEspSpi_taskHandle = osThreadNew(communEspSpi_task, NULL, &communEspSpi_taskAttr);
+	robot_ctrl_taskHandle = osThreadNew(robot_ctrl_task, NULL, &robot_ctrl_taskAttr);
 	dataCenter_taskHandle = osThreadNew(dataCenter_task, NULL, &dataCenter_taskAttr);
 
-	/* Semaphores */
+	/* Semaphores / queues */
 	hcsr04_semaph_queues_init();
 
 	/* Start scheduler */

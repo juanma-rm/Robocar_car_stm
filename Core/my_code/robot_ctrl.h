@@ -2,17 +2,21 @@
  * Project: Robocar
  * Application: on board app
  * Platform: STM Nucleo-F767ZI
- * @file my_tests.h
+ * @file robot_ctrl.h
  * @version v1.0
- * @brief Header for my_tests.c file
- ******************************************************************************/
+ * @brief Header for robot_ctrl.c file
+******************************************************************************/
 
 /*******************************************************************************
- * HEADER GUARD: BEGIN
+ * HEADER GUARD + EXTERN C: BEGIN
  ******************************************************************************/
 
-#ifndef MY_TESTS_H_
-#define MY_TESTS_H_
+#ifndef ROBOT_CTRL_H_
+#define ROBOT_CTRL_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*******************************************************************************
  * INCLUSIONS
@@ -21,7 +25,7 @@
 
 
 /*******************************************************************************
- * DEFINES AND CONST DATA
+ * USER
  ******************************************************************************/
 
 
@@ -30,20 +34,15 @@
  * FUNCTION PROTOTYPES
  ******************************************************************************/
 
-void test_ts_diff_time();
-void test_systools_delay_us_nops(void);
-void test_PWM(void);
-void test_encoder(void);
-void test_dir(void);
-void test_motor(void);
+void robot_ctrl_init(void);
+void robot_ctrl_task(void *argument);
 
 /*******************************************************************************
- * FUNCTION DEFINITIONS
+ * HEADER GUARD + EXTERN C: END
  ******************************************************************************/
 
+#ifdef __cplusplus
+}
+#endif
 
-/*******************************************************************************
- * HEADER GUARD: END
- ******************************************************************************/
-
-#endif /* MY_TESTS_H_ */
+#endif /* ROBOT_CTRL_H_ */

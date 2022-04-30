@@ -22,6 +22,7 @@ extern "C" {
  * INCLUSIONS
  ******************************************************************************/
 
+#include <stdbool.h>
 
 /*******************************************************************************
  * USER
@@ -31,7 +32,39 @@ extern "C" {
  * DATA STRUCTS / ENUMS
  ******************************************************************************/
 
+// Stores current car status coming from robot_ctrl
+typedef struct {
+	uint16_t workmode;
+	bool workmode_updated;
+	int16_t manctrly_perc;
+	bool manctrly_updated;
+	int16_t manctrlx_perc;
+	bool manctrlx_updated;
+	int16_t autctrl_speedy_mms;
+	bool autctrl_speedy_updated;
+	int16_t autctrl_speedx_mms;
+	bool autctrl_speedx_updated;
+	int16_t linspeed_mms;
+	bool linspeed_updated;
+	int16_t lspeed_rpm;
+	bool lspeed_updated;
+	int16_t rspeed_rpm;
+	bool rspeed_updated;
+} Robot_ctrl_struct;
 
+// Stores current order coming from telemetry to robot_ctrl
+typedef struct {
+	uint16_t workmode;
+	bool workmode_updated;
+	int16_t manctrly_perc;
+	bool manctrly_updated;
+	int16_t manctrlx_perc;
+	bool manctrlx_updated;
+	int16_t autctrl_speedy_mms;
+	bool autctrl_speedy_updated;
+	int16_t autctrl_speedx_mms;
+	bool autctrl_speedx_updated;
+} Tlmt_cmd_struct;
 
 /*******************************************************************************
  * DEFINES

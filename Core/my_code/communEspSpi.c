@@ -25,7 +25,7 @@
  *  1) SPI1 pins are used here
  *****************************************************************************/
 
-//#define DEBUG_SPI		// Uncomment for debugging (serial output)
+#define DEBUG_SPI		// Uncomment for debugging (serial output)
 
 /*******************************************************************************
  * INCLUSIONS
@@ -96,7 +96,7 @@ enum spi_state {
 osThreadId_t communEspSpi_taskHandle;
 const osThreadAttr_t communEspSpi_taskAttr = {
 		.name = "communEspSpi_task",
-		.stack_size = 128 * 8,
+		.stack_size = 128 * 16,
 		.priority = (osPriority_t) osPriorityNormal,
 };
 
@@ -333,6 +333,13 @@ void communEspSpi_task(void *argument) {
 						txBuffer[0],txBuffer[1],txBuffer[2],txBuffer[3],txBuffer[4],
 						txBuffer[5],txBuffer[6],txBuffer[7],txBuffer[8],txBuffer[9],
 						txBuffer[10]
+				);
+				systools_transm_usart3((uint8_t *)str_out, strlen(str_out), 10);
+				memset(str_out, 0, 100);
+				sprintf(str_out, "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,\n\r",
+						rxBuffer[0],rxBuffer[1],rxBuffer[2],rxBuffer[3],rxBuffer[4],
+						rxBuffer[5],rxBuffer[6],rxBuffer[7],rxBuffer[8],rxBuffer[9],
+						rxBuffer[10]
 				);
 				systools_transm_usart3((uint8_t *)str_out, strlen(str_out), 10);
 #endif

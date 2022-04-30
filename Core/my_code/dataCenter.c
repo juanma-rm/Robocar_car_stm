@@ -10,7 +10,7 @@
  * Warning!! (any warning?) @todo
 ******************************************************************************/
 
-#define PRINT_STATUS		// Uncomment for printing status (serial output)
+//#define PRINT_STATUS		// Uncomment for printing status (serial output)
 #define TICKS_BETW_PRINT	(500*configTICK_RATE_HZ/1000)
 
 /*******************************************************************************
@@ -36,36 +36,26 @@
  ******************************************************************************/
 
 typedef struct {
-	uint16_t st_workmode;
-	bool st_workmode_updated;
-	int16_t st_manctrly_perc;
-	bool st_manctrly_updated;
-	int16_t st_manctrlx_perc;
-	bool st_manctrlx_updated;
-	int16_t st_autctrl_speedy_mms;
-	bool st_autctrl_speedy_updated;
-	int16_t st_autctrl_speedx_mms;
-	bool st_autctrl_speedx_updated;
-	int16_t st_linspeed_mms;
-	bool st_linspeed_updated;
-	int16_t st_lspeed_rpm;
-	bool st_lspeed_updated;
-	int16_t st_rspeed_rpm;
-	bool st_rspeed_updated;
-	int16_t st_ldist_mm;
-	bool st_ldist_updated;
-	int16_t st_rdist_mm;
-	bool st_rdist_updated;
-	uint16_t tlmt_workmode;
-	bool tlmt_workmode_updated;
-	int16_t tlmt_manctrly_perc;
-	bool tlmt_manctrly_updated;
-	int16_t tlmt_manctrlx_perc;
-	bool tlmt_manctrlx_updated;
-	int16_t tlmt_autctrl_speedy_mms;
-	bool tlmt_autctrl_speedy_updated;
-	int16_t tlmt_autctrl_speedx_mms;
-	bool tlmt_autctrl_speedx_updated;
+	uint16_t workmode;
+	bool workmode_updated;
+	int16_t manctrly_perc;
+	bool manctrly_updated;
+	int16_t manctrlx_perc;
+	bool manctrlx_updated;
+	int16_t autctrl_speedy_mms;
+	bool autctrl_speedy_updated;
+	int16_t autctrl_speedx_mms;
+	bool autctrl_speedx_updated;
+	int16_t linspeed_mms;
+	bool linspeed_updated;
+	int16_t lspeed_rpm;
+	bool lspeed_updated;
+	int16_t rspeed_rpm;
+	bool rspeed_updated;
+	int16_t ldist_mm;
+	bool ldist_updated;
+	int16_t rdist_mm;
+	bool rdist_updated;
 } Car_state_struct;
 
 /*******************************************************************************
@@ -89,6 +79,11 @@ extern xQueueHandle hcsr04_queue_handler[NB_HCSR04];
 /* communEspSpi */
 extern xQueueHandle communespspi_in_queue_handler;
 extern xQueueHandle communespspi_out_queue_handler;
+
+/* robot_ctrl */
+extern xQueueHandle tlmt_cmd_queue_handler;
+extern xQueueHandle from_robot_ctrl_queue_handler;
+
 
 
 /*******************************************************************************
@@ -131,7 +126,7 @@ static void systools_print_status(
 			"Manual setpoint (%)",
 			"Automatic setpoint (mms)",
 			"Linear speed (mm/s)",
-			"Wheel speed (mm/s)",
+			"Wheel speed (rpm)",
 			"Distance to obstacle (mm)"
 	};
 	char col1_mess[NB_LINES][COL1_LENGTH] = {0};
@@ -193,6 +188,8 @@ void dataCenter_task(void *argument) {
 	// Structure to allocate data
 	Car_state_struct car_state;
 	memset(&car_state, 0, sizeof(Car_state_struct));
+	Tlmt_cmd_struct tlmt_cmd;
+	memset(&tlmt_cmd, 0, sizeof(Tlmt_cmd_struct));
 
 	// Print variables
 	bool first_print = true;
@@ -201,89 +198,124 @@ void dataCenter_task(void *argument) {
 	// Task flow
 	while(1) {
 
-		// Receive data from encoder_L sensor
-		//@todo
-		// Receive data from encoder_R sensor
-		//@todo
-		// Receive data for linear speed
-		//@todo
-		// Receive data from hcsr04_L sensor
-		if ( xQueueReceive(hcsr04_queue_handler[HCSR04_L_ID],  &(car_state.st_ldist_mm), 0) == pdTRUE ) {
-			car_state.st_ldist_updated = true;
+		// Receive from sensors (speed from motor_ctrl encoders)
+		Robot_ctrl_struct data_from_robot_ctrl;
+		if ( xQueueReceive(from_robot_ctrl_queue_handler,  &data_from_robot_ctrl, 0) == pdTRUE ) {
+			car_state.autctrl_speedx_mms = data_from_robot_ctrl.autctrl_speedx_mms;
+			car_state.autctrl_speedy_mms = data_from_robot_ctrl.autctrl_speedy_mms;
+			car_state.linspeed_mms = data_from_robot_ctrl.linspeed_mms;
+			car_state.lspeed_rpm = data_from_robot_ctrl.lspeed_rpm;
+			car_state.rspeed_rpm = data_from_robot_ctrl.rspeed_rpm;
+			car_state.manctrlx_perc = data_from_robot_ctrl.manctrlx_perc;
+			car_state.manctrly_perc = data_from_robot_ctrl.manctrly_perc;
+			car_state.workmode = data_from_robot_ctrl.workmode;
+
+			car_state.autctrl_speedx_updated = data_from_robot_ctrl.autctrl_speedx_updated;
+			car_state.autctrl_speedy_updated = data_from_robot_ctrl.autctrl_speedy_updated;
+			car_state.linspeed_updated = data_from_robot_ctrl.linspeed_updated;
+			car_state.lspeed_updated = data_from_robot_ctrl.lspeed_updated;
+			car_state.rspeed_updated = data_from_robot_ctrl.rspeed_updated;
+			car_state.manctrlx_updated = data_from_robot_ctrl.manctrlx_updated;
+			car_state.manctrly_updated = data_from_robot_ctrl.manctrly_updated;
+			car_state.workmode_updated = data_from_robot_ctrl.workmode_updated;
 		} else {
-			car_state.st_ldist_updated = false;
+			car_state.autctrl_speedx_updated = false;
+			car_state.autctrl_speedy_updated = false;
+			car_state.linspeed_updated = false;
+			car_state.lspeed_updated = false;
+			car_state.rspeed_updated = false;
+			car_state.manctrlx_updated = false;
+			car_state.manctrly_updated = false;
+			car_state.rspeed_updated = false;
+			car_state.workmode_updated = false;
+		}
+
+		// Receive from sensors (distance from hcsr04)
+		// Receive data from hcsr04_L sensor
+		if ( xQueueReceive(hcsr04_queue_handler[HCSR04_L_ID],  &(car_state.ldist_mm), 0) == pdTRUE ) {
+			car_state.ldist_updated = true;
+		} else {
+			car_state.ldist_updated = false;
 		}
 		// Receive data from hcsr04_R sensor
-		if ( xQueueReceive(hcsr04_queue_handler[HCSR04_R_ID],  &(car_state.st_rdist_mm), 0) == pdTRUE ) {
-			car_state.st_rdist_updated = true;
+		if ( xQueueReceive(hcsr04_queue_handler[HCSR04_R_ID],  &(car_state.rdist_mm), 0) == pdTRUE ) {
+			car_state.rdist_updated = true;
 		} else {
-			car_state.st_rdist_updated = false;
+			car_state.rdist_updated = false;
 		}
 
 		// Receive from spi connection
-		car_state.tlmt_workmode_updated = false;
-		car_state.tlmt_manctrly_updated = false;
-		car_state.tlmt_manctrlx_updated = false;
-		car_state.tlmt_autctrl_speedy_updated = false;
-		car_state.tlmt_autctrl_speedx_updated = false;
 		Message_struct_in message_in;
 		if ( xQueueReceive(communespspi_in_queue_handler,  &message_in, 0) == pdTRUE ) {
 			if (!message_in.workmode_err) {
-				car_state.tlmt_workmode = message_in.workmode;
-				car_state.tlmt_workmode_updated = true;
+				tlmt_cmd.workmode = message_in.workmode;
+				tlmt_cmd.workmode_updated = true;
+			} else {
+				tlmt_cmd.workmode_updated = false;
 			}
 			if (!message_in.manctrly_err) {
-				car_state.tlmt_manctrly_perc = message_in.manctrly_perc;
-				car_state.tlmt_manctrly_updated = true;
+				tlmt_cmd.manctrly_perc = message_in.manctrly_perc;
+				tlmt_cmd.manctrly_updated = true;
+			} else {
+				tlmt_cmd.manctrly_updated = false;
 			}
 			if (!message_in.manctrlx_err) {
-				car_state.tlmt_manctrlx_perc = message_in.manctrlx_perc;
-				car_state.tlmt_manctrlx_updated = true;
+				tlmt_cmd.manctrlx_perc = message_in.manctrlx_perc;
+				tlmt_cmd.manctrlx_updated = true;
+			} else {
+				tlmt_cmd.manctrlx_updated = false;
 			}
 			if (!message_in.autctrl_speedy_err) {
-				car_state.tlmt_autctrl_speedy_mms = message_in.autctrl_speedy_mms;
-				car_state.tlmt_autctrl_speedy_updated = true;
+				tlmt_cmd.autctrl_speedy_mms = message_in.autctrl_speedy_mms;
+				tlmt_cmd.autctrl_speedy_updated = true;
+			} else {
+				tlmt_cmd.autctrl_speedy_updated = false;
 			}
 			if (!message_in.autctrl_speedx_err) {
-				car_state.tlmt_autctrl_speedx_mms = message_in.autctrl_speedx_mms;
-				car_state.tlmt_autctrl_speedx_updated = true;
+				tlmt_cmd.autctrl_speedx_mms = message_in.autctrl_speedx_mms;
+				tlmt_cmd.autctrl_speedx_updated = true;
+			} else {
+				tlmt_cmd.autctrl_speedx_updated = false;
 			}
 		}
+		// Temp manual commands to robot_ctrl
+//		tlmt_cmd.workmode = 0;
+//		tlmt_cmd.workmode = 1;
+//		tlmt_cmd.workmode_updated = true;
+//		tlmt_cmd.manctrlx_perc = 0;
+//		tlmt_cmd.manctrlx_updated = true;
+//		tlmt_cmd.manctrly_perc = 30;
+//		tlmt_cmd.manctrly_updated = true;
 
-		// Update st_workmode
-		//@todo
-		// Update st_manctrly_perc
-		//@todo
-		// Update st_manctrlx_perc
-		//@todo
-		// Update st_autctrl_speedy_mms
-		//@todo
-		// Update st_autctrl_speedx_mms
-		//@todo
+		// Send new command to robot_ctrl
+		// Remove last command in case it has not been processed yet
+		Tlmt_cmd_struct unused;
+		xQueueReceive(tlmt_cmd_queue_handler,  &unused, 0);
+		xQueueSend(tlmt_cmd_queue_handler, &tlmt_cmd, 0);
 
 		// Send new data to be sent via spi connection
 		if (uxQueueMessagesWaiting(communespspi_out_queue_handler) == 0) {
 			Message_struct_out message_out;
 			message_out.workmode_err = false;
-			message_out.workmode = 0;
+			message_out.workmode = car_state.workmode;
 			message_out.manctrly_err = false;
-			message_out.manctrly_perc = 80;
+			message_out.manctrly_perc = car_state.manctrly_perc;
 			message_out.manctrlx_err = false;
-			message_out.manctrlx_perc = 0;
+			message_out.manctrlx_perc = car_state.manctrlx_perc;
 			message_out.autctrl_speedy_err = false;
-			message_out.autctrl_speedy_mms = 150;
+			message_out.autctrl_speedy_mms = car_state.autctrl_speedy_mms;
 			message_out.autctrl_speedx_err = false;
-			message_out.autctrl_speedx_mms = 150;
+			message_out.autctrl_speedx_mms = car_state.autctrl_speedx_mms;
 			message_out.linspeed_err = false;
-			message_out.linspeed_mms = 150;
+			message_out.linspeed_mms = car_state.linspeed_mms;
 			message_out.lspeed_err = false;
-			message_out.lspeed_rpm = 15;
+			message_out.lspeed_rpm = car_state.lspeed_rpm;
 			message_out.rspeed_err = false;
-			message_out.rspeed_rpm = 15;
+			message_out.rspeed_rpm = car_state.rspeed_rpm;
 			message_out.ldist_err = false;
-			message_out.ldist_mm = car_state.st_ldist_mm;
+			message_out.ldist_mm = car_state.ldist_mm;
 			message_out.rdist_err = false;
-			message_out.rdist_mm = 150;
+			message_out.rdist_mm = car_state.rdist_mm;
 			xQueueSend(communespspi_out_queue_handler, &message_out, 0);
 		}
 
@@ -291,10 +323,10 @@ void dataCenter_task(void *argument) {
 #if defined(PRINT_STATUS)
 		if (first_print || systools_diff_time(last_print,osKernelGetTickCount(),UINT16_MAX)>TICKS_BETW_PRINT ) {
 			systools_print_status(
-					(int16_t) car_state.st_workmode, car_state.st_manctrly_perc, car_state.st_manctrlx_perc,
-					car_state.st_autctrl_speedy_mms, car_state.st_autctrl_speedx_mms,
-					car_state.st_linspeed_mms, car_state.st_lspeed_rpm, car_state.st_rspeed_rpm,
-					car_state.st_ldist_mm, car_state.st_rdist_mm);
+					(int16_t) car_state.workmode, car_state.manctrly_perc, car_state.manctrlx_perc,
+					car_state.autctrl_speedy_mms, car_state.autctrl_speedx_mms,
+					car_state.linspeed_mms, car_state.lspeed_rpm, car_state.rspeed_rpm,
+					car_state.ldist_mm, car_state.rdist_mm);
 			last_print = osKernelGetTickCount();
 			first_print = false;
 		}

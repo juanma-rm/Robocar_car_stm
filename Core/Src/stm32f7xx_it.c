@@ -58,6 +58,7 @@
 /* External variables --------------------------------------------------------*/
 extern TIM_HandleTypeDef htim10;
 extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN EV */
 

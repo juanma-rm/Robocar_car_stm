@@ -2,17 +2,21 @@
  * Project: Robocar
  * Application: on board app
  * Platform: STM Nucleo-F767ZI
- * @file my_tests.h
+ * @file motor_ctrl.h
  * @version v1.0
- * @brief Header for my_tests.c file
- ******************************************************************************/
+ * @brief Header for motor_ctrl.h.c file
+******************************************************************************/
 
 /*******************************************************************************
- * HEADER GUARD: BEGIN
+ * HEADER GUARD + EXTERN C: BEGIN
  ******************************************************************************/
 
-#ifndef MY_TESTS_H_
-#define MY_TESTS_H_
+#ifndef MOTOR_DRIVER_H_
+#define MOTOR_DRIVER_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*******************************************************************************
  * INCLUSIONS
@@ -21,29 +25,31 @@
 
 
 /*******************************************************************************
- * DEFINES AND CONST DATA
+ * USER
  ******************************************************************************/
 
-
+// DIRECTION
+#define MOTOR_FORWARD	0
+#define MOTOR_BACKWARD	1
+#define MOTOR_FREE		2
+// MOTOR ID
+#define MOTOR_L		0
+#define MOTOR_R		1
 
 /*******************************************************************************
  * FUNCTION PROTOTYPES
  ******************************************************************************/
 
-void test_ts_diff_time();
-void test_systools_delay_us_nops(void);
-void test_PWM(void);
-void test_encoder(void);
-void test_dir(void);
-void test_motor(void);
+void motor_ctrl_init(void);
+void motor_set(unsigned int side, unsigned int dir, unsigned int pwm_perc);
+void read_speed(unsigned int side, unsigned int time_bet_meas_ms, float *speed_mm_s, int16_t *speed_rpm);
 
 /*******************************************************************************
- * FUNCTION DEFINITIONS
+ * HEADER GUARD + EXTERN C: END
  ******************************************************************************/
 
+#ifdef __cplusplus
+}
+#endif
 
-/*******************************************************************************
- * HEADER GUARD: END
- ******************************************************************************/
-
-#endif /* MY_TESTS_H_ */
+#endif /* MOTOR_DRIVER_H_ */

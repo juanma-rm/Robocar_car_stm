@@ -231,6 +231,7 @@ void systools_hw_init(void) {
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
 	MX_USART3_UART_Init();
+	hcsr04_TIM10_init();
 }
 
 /*****************************************
