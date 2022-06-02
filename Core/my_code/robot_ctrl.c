@@ -199,11 +199,11 @@ void robot_ctrl_task(void *argument) {
 				motor_L_pwm = manctrly_perc_abs;
 				motor_R_pwm = manctrly_perc_abs;
 			} else if (curr_state.manctrlx_perc < 0) {
-				motor_L_pwm = manctrly_perc_abs;
-				motor_R_pwm = manctrly_perc_abs*(100+1*curr_state.manctrlx_perc)/100;
-			} else if (curr_state.manctrlx_perc > 0) {
-				motor_L_pwm = manctrly_perc_abs*(100-curr_state.manctrlx_perc)/100;
+				motor_L_pwm = manctrly_perc_abs*(100+1*curr_state.manctrlx_perc)/100;
 				motor_R_pwm = manctrly_perc_abs;
+			} else if (curr_state.manctrlx_perc > 0) {
+				motor_L_pwm = manctrly_perc_abs;
+				motor_R_pwm = manctrly_perc_abs*(100-curr_state.manctrlx_perc)/100;
 			}
 
 		// 3.3) Workmode = 2: automatic control (PID)
